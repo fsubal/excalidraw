@@ -89,6 +89,7 @@ import { ScrollBars } from "../scene/types";
 import { invalidateShapeForElement } from "../renderer/renderElement";
 import { generateCollaborationLink, getCollaborationLinkData } from "../data";
 import { mutateElement, newElementWith } from "../element/mutateElement";
+import { actionFinalize } from "../actions";
 
 // -----------------------------------------------------------------------------
 // TEST HOOKS
@@ -1446,14 +1447,26 @@ export class App extends React.Component<any, AppState> {
     ) {
       if (this.state.multiElement) {
         const { multiElement } = this.state;
+        // technically should always have 2+ sets of points at this moment,
+        //  but in case it doesn't, fallback to infitely far away points to
+        //  ensure we don't confirm on doubleClick
+        const [lastX, lastY] = multiElement.points[
+          multiElement.points.length - 2
+        ] || [-Infinity, -Infinity];
+
         const { x: rx, y: ry } = multiElement;
+
+        if (distance2d(x - rx, y - ry, lastX, lastY) < 10) {
+          this.actionManager.executeAction(actionFinalize);
+          return;
+        }
+        multiElement.points.push([x - rx, y - ry]);
         this.setState(prevState => ({
           selectedElementIds: {
             ...prevState.selectedElementIds,
             [multiElement.id]: true,
           },
         }));
-        multiElement.points.push([x - rx, y - ry]);
         invalidateShapeForElement(multiElement);
       } else {
         this.setState(prevState => ({
