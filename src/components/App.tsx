@@ -157,7 +157,6 @@ export class App extends React.Component<
   { width?: number; height?: number },
   AppState
 > {
-  container: HTMLElement | null = null;
   canvas: HTMLCanvasElement | null = null;
   rc: RoughCanvas | null = null;
   socket: SocketIOClient.Socket | null = null;
@@ -165,6 +164,10 @@ export class App extends React.Component<
   roomID: string | null = null;
   roomKey: string | null = null;
   lastBroadcastedOrReceivedSceneVersion: number = -1;
+  // left/top on screen
+  containerDeltaInitialized = false;
+  containerLeft = 0;
+  containerTop = 0;
 
   actionManager: ActionManager;
   canvasOnlyActions = ["selectAll"];
@@ -569,9 +572,21 @@ export class App extends React.Component<
   };
 
   private updateCurrentCursorPosition = (event: MouseEvent) => {
-    cursorX = event.x;
-    cursorY = event.y;
+    cursorX = event.x - this.containerLeft;
+    cursorY = event.y - this.containerTop;
   };
+
+  private getPositionFromEvent(
+    event:
+      | PointerEvent
+      | MouseEvent
+      | React.MouseEvent<HTMLCanvasElement, MouseEvent>,
+  ) {
+    return [
+      event.screenX - this.containerLeft,
+      event.screenY - this.containerTop,
+    ];
+  }
 
   private onKeyDown = (event: KeyboardEvent) => {
     if (
@@ -763,8 +778,8 @@ export class App extends React.Component<
   };
 
   public render() {
-    const canvasDOMWidth = window.innerWidth;
-    const canvasDOMHeight = window.innerHeight;
+    const canvasDOMWidth = this.props.width ?? window.innerWidth;
+    const canvasDOMHeight = this.props.height ?? window.innerHeight;
 
     const canvasScale = window.devicePixelRatio;
 
@@ -775,7 +790,16 @@ export class App extends React.Component<
       <div
         className="container"
         ref={ref => {
-          this.container = ref;
+          if (this.containerDeltaInitialized) {
+            return;
+          }
+
+          if (ref) {
+            const rect = ref.getBoundingClientRect();
+            this.containerLeft = rect.left;
+            this.containerTop = rect.top;
+            this.containerDeltaInitialized = true;
+          }
         }}
       >
         <LayerUI
@@ -832,6 +856,7 @@ export class App extends React.Component<
                 this.state.zoom,
               );
               if (!element) {
+                const [top, left] = this.getPositionFromEvent(event);
                 ContextMenu.push({
                   options: [
                     navigator.clipboard && {
@@ -847,8 +872,8 @@ export class App extends React.Component<
                       this.canvasOnlyActions.includes(action.name),
                     ),
                   ],
-                  top: event.clientY,
-                  left: event.clientX,
+                  top,
+                  left,
                 });
                 return;
               }
@@ -856,7 +881,7 @@ export class App extends React.Component<
               if (!this.state.selectedElementIds[element.id]) {
                 this.setState({ selectedElementIds: { [element.id]: true } });
               }
-
+              const [left, top] = this.getPositionFromEvent(event);
               ContextMenu.push({
                 options: [
                   navigator.clipboard && {
@@ -875,8 +900,8 @@ export class App extends React.Component<
                     action => !this.canvasOnlyActions.includes(action.name),
                   ),
                 ],
-                top: event.clientY,
-                left: event.clientX,
+                top,
+                left,
               });
             }}
             onPointerDown={this.handleCanvasPointerDown}
@@ -951,8 +976,7 @@ export class App extends React.Component<
 
     this.setState({ editingElement: element });
 
-    let textX = event.clientX;
-    let textY = event.clientY;
+    let [textX, textY] = this.getPositionFromEvent(event);
 
     if (elementAtPosition && isTextElement(elementAtPosition)) {
       this.replaceElements(
@@ -1048,9 +1072,10 @@ export class App extends React.Component<
     );
     this.savePointer(pointerCoords);
     if (gesture.pointers.has(event.pointerId)) {
+      const [left, top] = this.getPositionFromEvent(event);
       gesture.pointers.set(event.pointerId, {
-        x: event.clientX,
-        y: event.clientY,
+        x: left,
+        y: top,
       });
     }
 
@@ -1075,10 +1100,11 @@ export class App extends React.Component<
     if (isHoldingSpace || isPanning || isDraggingScrollBar) {
       return;
     }
+    const [left, top] = this.getPositionFromEvent(event);
     const {
       isOverHorizontalScrollBar,
       isOverVerticalScrollBar,
-    } = isOverScrollBars(currentScrollBars, event.clientX, event.clientY);
+    } = isOverScrollBars(currentScrollBars, left, top);
     const isOverScrollBar =
       isOverVerticalScrollBar || isOverHorizontalScrollBar;
     if (!this.state.draggingElement && !this.state.multiElement) {
@@ -1167,12 +1193,13 @@ export class App extends React.Component<
     ) {
       isPanning = true;
       document.documentElement.style.cursor = CURSOR_TYPE.GRABBING;
-      let { clientX: lastX, clientY: lastY } = event;
+      let [lastX, lastY] = this.getPositionFromEvent(event);
       const onPointerMove = (event: PointerEvent) => {
-        const deltaX = lastX - event.clientX;
-        const deltaY = lastY - event.clientY;
-        lastX = event.clientX;
-        lastY = event.clientY;
+        const [left, top] = this.getPositionFromEvent(event);
+        const deltaX = lastX - left;
+        const deltaY = lastY - top;
+        lastX = left;
+        lastY = top;
 
         this.setState({
           scrollX: normalizeScroll(
@@ -1209,9 +1236,10 @@ export class App extends React.Component<
       return;
     }
 
+    const [left, top] = this.getPositionFromEvent(event);
     gesture.pointers.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
+      x: left,
+      y: top,
     });
 
     if (gesture.pointers.size === 2) {
@@ -1240,7 +1268,7 @@ export class App extends React.Component<
     const {
       isOverHorizontalScrollBar,
       isOverVerticalScrollBar,
-    } = isOverScrollBars(currentScrollBars, event.clientX, event.clientY);
+    } = isOverScrollBars(currentScrollBars, left, top);
 
     const { x, y } = viewportCoordsToSceneCoords(
       event,
@@ -1255,8 +1283,8 @@ export class App extends React.Component<
       !this.state.multiElement
     ) {
       isDraggingScrollBar = true;
-      lastX = event.clientX;
-      lastY = event.clientY;
+      lastX = left;
+      lastY = top;
       const onPointerMove = (event: PointerEvent) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) {
@@ -1264,7 +1292,7 @@ export class App extends React.Component<
         }
 
         if (isOverHorizontalScrollBar) {
-          const x = event.clientX;
+          const x = left;
           const dx = x - lastX;
           this.setState({
             scrollX: normalizeScroll(this.state.scrollX - dx / this.state.zoom),
@@ -1274,7 +1302,7 @@ export class App extends React.Component<
         }
 
         if (isOverVerticalScrollBar) {
-          const y = event.clientY;
+          const y = top;
           const dy = y - lastY;
           this.setState({
             scrollY: normalizeScroll(this.state.scrollY - dy / this.state.zoom),
@@ -1411,8 +1439,7 @@ export class App extends React.Component<
       if (elementIsAddedToSelection) {
         element = hitElement!;
       }
-      let textX = event.clientX;
-      let textY = event.clientY;
+      let [textX, textY] = this.getPositionFromEvent(event);
       if (!event.altKey) {
         const snappedToCenterPosition = this.getTextWysiwygSnappedToCenterPosition(
           x,
@@ -1611,9 +1638,9 @@ export class App extends React.Component<
       if (!(target instanceof HTMLElement)) {
         return;
       }
-
+      const [left, top] = this.getPositionFromEvent(event);
       if (isOverHorizontalScrollBar) {
-        const x = event.clientX;
+        const x = left;
         const dx = x - lastX;
         this.setState({
           scrollX: normalizeScroll(this.state.scrollX - dx / this.state.zoom),
@@ -1623,7 +1650,7 @@ export class App extends React.Component<
       }
 
       if (isOverVerticalScrollBar) {
-        const y = event.clientY;
+        const y = top;
         const dy = y - lastY;
         this.setState({
           scrollY: normalizeScroll(this.state.scrollY - dy / this.state.zoom),
