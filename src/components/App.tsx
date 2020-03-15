@@ -1160,6 +1160,7 @@ export class App extends React.Component<any, AppState> {
       document.documentElement.style.cursor = CURSOR_TYPE.GRABBING;
       let { clientX: lastX, clientY: lastY } = event;
       const onPointerMove = (event: PointerEvent) => {
+        console.log(2);
         const deltaX = lastX - event.clientX;
         const deltaY = lastY - event.clientY;
         lastX = event.clientX;
@@ -1249,6 +1250,7 @@ export class App extends React.Component<any, AppState> {
       lastX = event.clientX;
       lastY = event.clientY;
       const onPointerMove = (event: PointerEvent) => {
+        console.log(0);
         const target = event.target;
         if (!(target instanceof HTMLElement)) {
           return;
@@ -1598,6 +1600,7 @@ export class App extends React.Component<any, AppState> {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      console.log(1);
       const target = event.target;
       if (!(target instanceof HTMLElement)) {
         return;
@@ -1859,6 +1862,7 @@ export class App extends React.Component<any, AppState> {
       }
 
       if (hitElement && this.state.selectedElementIds[hitElement.id]) {
+        // console.log(11);
         // Marking that click was used for dragging to check
         // if elements should be deselected on pointerup
         draggingOccurred = true;
