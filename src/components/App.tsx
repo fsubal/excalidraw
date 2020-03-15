@@ -856,7 +856,7 @@ export class App extends React.Component<
                 this.state.zoom,
               );
               if (!element) {
-                const [top, left] = this.getPositionFromEvent(event);
+                const [left, top] = this.getPositionFromEvent(event);
                 ContextMenu.push({
                   options: [
                     navigator.clipboard && {
