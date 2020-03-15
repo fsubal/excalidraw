@@ -153,7 +153,11 @@ function setCursorForShape(shape: string) {
   }
 }
 
-export class App extends React.Component<any, AppState> {
+export class App extends React.Component<
+  { width?: number; height?: number },
+  AppState
+> {
+  container: HTMLElement | null = null;
   canvas: HTMLCanvasElement | null = null;
   rc: RoughCanvas | null = null;
   socket: SocketIOClient.Socket | null = null;
@@ -164,7 +168,7 @@ export class App extends React.Component<any, AppState> {
 
   actionManager: ActionManager;
   canvasOnlyActions = ["selectAll"];
-  constructor(props: any) {
+  constructor(props: { width?: number; height?: number }) {
     super(props);
     this.actionManager = new ActionManager(
       this.syncActionResult,
@@ -768,7 +772,12 @@ export class App extends React.Component<any, AppState> {
     const canvasHeight = canvasDOMHeight * canvasScale;
 
     return (
-      <div className="container">
+      <div
+        className="container"
+        ref={ref => {
+          this.container = ref;
+        }}
+      >
         <LayerUI
           canvas={this.canvas}
           appState={this.state}

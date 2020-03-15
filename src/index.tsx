@@ -17,13 +17,13 @@ document.addEventListener(
   { passive: false },
 );
 
-const rootElement = document.getElementById("root");
-
-ReactDOM.render(
+const Main = (props: { width: number; height: number }) => (
   <TopErrorBoundary>
     <IsMobileProvider>
-      <App />
+      <App width={props.width} height={props.height} />
     </IsMobileProvider>
-  </TopErrorBoundary>,
-  rootElement,
+  </TopErrorBoundary>
 );
+
+const rootElement = document.getElementById("root") as HTMLElement;
+ReactDOM.render(<Main width={800} height={600} />, rootElement);
